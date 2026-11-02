@@ -1,0 +1,22 @@
+# Model configuration v1 — baseline.
+# The worker image ships every config; the ECS task picks one with MODEL_VERSION.
+# The trained artifact lives at s3://<bucket>/models/v1/{model.joblib,metadata.json}
+# and is checked against metadata.json's sha256 before it is loaded.
+version: v1
+description: Word TF-IDF + logistic regression baseline
+training:
+  seed: 42
+  n_per_class: 400
+  noise_rate: 0.03
+  test_size: 0.2
+  word_ngrams: [1, 2]
+  char_ngrams: null          # char features disabled in the baseline
+  C: 1.0
+  max_features: 20000
+serving:
+  min_confidence: 0.6        # below this the job is marked needs_review
+  max_file_mb: 10
+  min_text_chars: 20
+  ocr_lang: eng
+  ocr_psm: 6
+  max_image_side: 3000

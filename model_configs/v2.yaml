@@ -1,0 +1,20 @@
+# Model configuration v2 — adds character n-grams, which hold up better against OCR typos.
+# Trained on noisier text than v1 (noise_rate 0.06) to match real Tesseract output.
+version: v2
+description: Word + char_wb TF-IDF + logistic regression, trained on noisier OCR text
+training:
+  seed: 7
+  n_per_class: 600
+  noise_rate: 0.06
+  test_size: 0.2
+  word_ngrams: [1, 2]
+  char_ngrams: [3, 5]
+  C: 4.0
+  max_features: 40000
+serving:
+  min_confidence: 0.7
+  max_file_mb: 10
+  min_text_chars: 20
+  ocr_lang: eng
+  ocr_psm: 6
+  max_image_side: 3000

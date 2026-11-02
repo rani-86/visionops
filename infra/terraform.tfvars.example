@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and edit.
+region        = "ap-south-1"
+owner         = "your-name"
+alert_email   = "you@example.com"     # confirm the SNS subscription email after apply
+github_repo   = "your-github-user/visionops"
+model_version = "v1"
+min_workers   = 0
+max_workers   = 4
+# create_github_oidc_provider = false  # if your account already has the GitHub OIDC provider

@@ -1,0 +1,99 @@
+name: Deploy worker
+
+# Builds the worker image, pushes it to ECR tagged with the commit SHA and rolls the ECS
+# service. AWS access uses GitHub OIDC -> IAM role (no stored access keys).
+#
+# Repository variables (Settings -> Secrets and variables -> Actions -> Variables), from
+# `terraform output github_actions_variables`:
+#   AWS_REGION, AWS_ROLE_ARN, ECR_REPOSITORY, ECS_CLUSTER, ECS_SERVICE, TASK_FAMILY,
+#   MODEL_BUCKET, MODEL_VERSION
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "visionops/**"
+      - "model_configs/**"
+      - "Dockerfile"
+      - "requirements.txt"
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: "Model config version to deploy (e.g. v2). Blank = repository variable MODEL_VERSION"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      MODEL_VERSION: ${{ inputs.model_version || vars.MODEL_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the model config exists in this commit
+        run: test -f "model_configs/${MODEL_VERSION}.yaml"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Check the model artifact is published
+        run: |
+          aws s3api head-object --bucket "${{ vars.MODEL_BUCKET }}" --key "models/${MODEL_VERSION}/model.joblib" > /dev/null
+          aws s3api head-object --bucket "${{ vars.MODEL_BUCKET }}" --key "models/${MODEL_VERSION}/metadata.json" > /dev/null
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          if aws ecr describe-images --repository-name "${{ vars.ECR_REPOSITORY }}" --image-ids imageTag=${{ github.sha }} > /dev/null 2>&1; then
+            echo "Image for ${{ github.sha }} already exists (immutable tags), reusing it"
+          else
+            docker build --build-arg GIT_SHA=${{ github.sha }} -t "$IMAGE" .
+            docker push "$IMAGE"
+          fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition "${{ vars.TASK_FAMILY }}" \
+            --query taskDefinition > task-definition.json
+
+      - id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: worker
+          image: ${{ steps.image.outputs.image }}
+          environment-variables: |
+            MODEL_VERSION=${{ env.MODEL_VERSION }}
+            GIT_SHA=${{ github.sha }}
+
+      - name: Deploy to ECS (circuit breaker rolls back on failure)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          service: ${{ vars.ECS_SERVICE }}
+          wait-for-service-stability: true
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed"
+            echo "- image: \`${{ steps.image.outputs.image }}\`"
+            echo "- model version: \`${MODEL_VERSION}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

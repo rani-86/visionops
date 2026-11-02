@@ -1,0 +1,9 @@
+# Runtime dependencies of the worker container (keep pins identical to training so the pickle loads)
+boto3==1.40.61
+numpy==2.3.5
+scikit-learn==1.7.2
+joblib==1.5.2
+Pillow==11.3.0
+pytesseract==0.3.13
+pypdf==6.1.3
+PyYAML==6.0.3

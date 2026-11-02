@@ -1,0 +1,6 @@
+-r requirements.txt
+mlflow==3.5.1
+SQLAlchemy<2.1  # mlflow 3.5 imports a pool class removed in SQLAlchemy 2.1
+moto[s3,sqs]==5.1.15
+pytest==8.4.2
+ruff==0.14.3
