@@ -142,11 +142,11 @@ data "aws_iam_policy_document" "github_assume" {
       values   = ["sts.amazonaws.com"]
     }
     # Only workflows from this repository can deploy. StringLike tolerates GitHub's
-    # sub-claim formats (branch ref, environment, or repository-ID based).
+    # sub-claim formats. Newer repos send IDs too: repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:...
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = concat(["repo:${var.github_repo}:*"], var.github_oidc_sub_patterns)
     }
   }
 }

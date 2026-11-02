@@ -97,3 +97,9 @@ variable "force_destroy" {
   type        = bool
   default     = true
 }
+
+variable "github_oidc_sub_patterns" {
+  description = "Extra allowed OIDC sub patterns, e.g. GitHub's ID-based format repo:owner@123/repo@456:*"
+  type        = list(string)
+  default     = []
+}

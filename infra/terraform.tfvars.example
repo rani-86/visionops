@@ -7,3 +7,4 @@ model_version = "v1"
 min_workers   = 0
 max_workers   = 4
 # create_github_oidc_provider = false  # if your account already has the GitHub OIDC provider
+# github_oidc_sub_patterns = ["repo:<owner>@<owner_id>/<repo>@<repo_id>:*"]  # if GitHub sends ID-based sub claims
