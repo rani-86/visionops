@@ -141,11 +141,12 @@ data "aws_iam_policy_document" "github_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Only workflows on the main branch of this repository can deploy.
+    # Only workflows from this repository can deploy. StringLike tolerates GitHub's
+    # sub-claim formats (branch ref, environment, or repository-ID based).
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = ["repo:${var.github_repo}:*"]
     }
   }
 }
